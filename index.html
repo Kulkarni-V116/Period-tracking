@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Luna — Period Tracker</title>
+
+  <!-- PWA / Home Screen -->
+  <meta name="theme-color" content="#310E10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Luna">
+  <meta name="application-name" content="Luna">
+  <!-- icons injected by JS below -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,600&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blood:    #74070E;
+      --vanilla:  #F4E3B2;
+      --olive:    #45462A;
+      --cinereous:#947268;
+      --bean:     #310E10;
+    }
+
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bean);
+      color: var(--vanilla);
+      font-family: 'Jost', sans-serif;
+      font-weight: 300;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+      animation: fadeIn 0.8s ease both;
+    }
+
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+    /* Grain texture */
+    body::after {
+      content:'';
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      z-index:9998;
+      background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.12'/%3E%3C/svg%3E");
+      opacity: 0.35;
+      mix-blend-mode: overlay;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: relative;
+      text-align: center;
+      padding: 2.5rem 1rem 1.5rem;
+      border-bottom: 1px solid rgba(148,114,104,0.25);
+      overflow: hidden;
+    }
+
+    header .botanical-corner {
+      position: absolute;
+      opacity: 0.22;
+    }
+    header .botanical-corner.tl { top:0; left:0; transform: none; }
+    header .botanical-corner.tr { top:0; right:0; transform: scaleX(-1); }
+
+    header h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.8rem, 8vw, 5rem);
+      font-weight: 300;
+      letter-spacing: 0.25em;
+      color: var(--vanilla);
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    header h1 span {
+      color: var(--blood);
+    }
+
+    header::after {
+      content: '';
+      display: block;
+      width: 60px;
+      height: 2px;
+      background: var(--blood);
+      margin: 0.7rem auto 0;
+      box-shadow: 0 0 10px rgba(116,7,14,0.6);
+    }
+
+    header p.tagline {
+      font-family: 'Jost', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--blood);
+      opacity: 0.75;
+      margin-top: 0.4rem;
+    }
+
+    /* ── PHASE STRIP ── */
+    #phase-strip {
+      width: 100%;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      transition: background 0.6s ease;
+      border-bottom: 1px solid rgba(148,114,104,0.15);
+    }
+
+    #phase-strip .phase-label {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.3rem;
+      font-weight: 600;
+      font-style: italic;
+      color: var(--vanilla);
+      min-width: max-content;
+    }
+
+    #phase-strip .phase-desc {
+      font-size: 0.78rem;
+      color: var(--cinereous);
+      letter-spacing: 0.05em;
+    }
+
+    #phase-strip .phase-icon {
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+
+    #phase-strip .phase-dots {
+      display: flex;
+      gap: 0.35rem;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    #phase-strip .phase-dots span {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(148,114,104,0.3);
+      transition: background 0.4s;
+    }
+
+    #phase-strip .phase-dots span.active {
+      background: var(--blood);
+      box-shadow: 0 0 6px var(--blood);
+    }
+
+    /* ── PREDICTION BANNER ── */
+    #prediction-banner {
+      display: none;
+      margin: 1rem 1.5rem 0;
+      padding: 1rem 1.4rem;
+      background: rgba(116,7,14,0.12);
+      border: 1px solid rgba(116,7,14,0.35);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      color: var(--vanilla);
+      line-height: 1.6;
+      position: relative;
+    }
+
+    #prediction-banner .banner-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--vanilla);
+      margin-bottom: 0.25rem;
+      letter-spacing: 0.04em;
+    }
+
+    #prediction-banner .banner-close {
+      position: absolute;
+      top: 0.6rem; right: 0.9rem;
+      background: none; border: none;
+      color: var(--cinereous);
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    /* ── REMINDER BADGE ── */
+    #reminder-alert {
+      display: none;
+      margin: 0.75rem 1.5rem 0;
+      padding: 0.85rem 1.2rem;
+      background: rgba(116,7,14,0.18);
+      border: 1px solid var(--blood);
+      border-radius: 6px;
+      font-size: 0.82rem;
+      color: var(--vanilla);
+      animation: pulse-glow 2.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%,100% { box-shadow: 0 0 6px rgba(116,7,14,0.3); }
+      50%      { box-shadow: 0 0 18px rgba(116,7,14,0.6); }
+    }
+
+    /* ── MAIN LAYOUT ── */
+    main {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1.5rem;
+      padding: 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 860px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    /* ── CALENDAR ── */
+    .calendar-wrapper {
+      background: var(--olive);
+      border: 1px solid rgba(116,7,14,0.35);
+      border-radius: 8px;
+      padding: 1.5rem;
+      animation: fadeIn 0.9s ease 0.1s both;
+      box-shadow: inset 0 0 40px rgba(116,7,14,0.05);
+    }
+
+    .cal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.2rem;
+    }
+
+    .cal-header h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.7rem;
+      font-weight: 300;
+      letter-spacing: 0.08em;
+      color: var(--vanilla);
+    }
+
+    .cal-nav {
+      background: rgba(116,7,14,0.15);
+      border: 1px solid rgba(116,7,14,0.45);
+      border-radius: 4px;
+      color: var(--cinereous);
+      width: 34px; height: 34px;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .cal-nav:hover {
+      background: rgba(116,7,14,0.35);
+      border-color: var(--blood);
+      color: var(--vanilla);
+      box-shadow: 0 0 10px rgba(116,7,14,0.4);
+    }
+
+    .cal-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7,1fr);
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .cal-weekdays span {
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(116,7,14,0.8);
+      padding: 0.3rem 0;
+    }
+
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7,1fr);
+      gap: 4px;
+    }
+
+    .cal-day {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-size: 0.85rem;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      color: var(--vanilla);
+    }
+
+    .cal-day:hover:not(.empty) {
+      background: rgba(148,114,104,0.2);
+      transform: scale(1.08);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+
+    .cal-day.empty { cursor: default; }
+
+    .cal-day.period {
+      background: var(--blood);
+      color: var(--vanilla);
+      font-weight: 500;
+      box-shadow: 0 0 12px rgba(116,7,14,0.5);
+    }
+
+    .cal-day.period:hover {
+      background: #8c0a12;
+      transform: scale(1.08);
+    }
+
+    .cal-day.predicted {
+      border: 1.5px dashed rgba(116,7,14,0.6);
+      background: rgba(116,7,14,0.15);
+      color: rgba(244,227,178,0.7);
+    }
+
+    .cal-day.today {
+      border: 1.5px solid var(--vanilla);
+      font-weight: 500;
+    }
+
+    .cal-day.today.period {
+      border-color: var(--vanilla);
+    }
+
+    .cal-day.has-log::after {
+      content:'';
+      position:absolute;
+      bottom: 3px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px; height: 3px;
+      border-radius: 50%;
+      background: var(--cinereous);
+    }
+
+    .cal-day.period.has-log::after {
+      background: rgba(244,227,178,0.6);
+    }
+
+    .cal-legend {
+      display: flex;
+      gap: 1.2rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.7rem;
+      color: var(--cinereous);
+      letter-spacing: 0.05em;
+    }
+
+    .legend-swatch {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+    }
+
+    .legend-swatch.period { background: var(--blood); }
+    .legend-swatch.predicted { border: 1.5px dashed rgba(116,7,14,0.6); background: rgba(116,7,14,0.15); }
+    .legend-swatch.today { border: 1.5px solid var(--vanilla); background: transparent; }
+
+    /* ── RIGHT PANEL ── */
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* ── STATS ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+    }
+
+    .stat-card {
+      background: var(--olive);
+      border: 1px solid rgba(116,7,14,0.3);
+      border-top: 2px solid var(--blood);
+      border-radius: 8px;
+      padding: 1rem;
+      animation: fadeIn 0.9s ease 0.2s both;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(116,7,14,0.2);
+    }
+
+    .stat-card.countdown {
+      grid-column: span 2;
+      text-align: center;
+      padding: 1.2rem;
+      background: rgba(116,7,14,0.15);
+      border-color: rgba(116,7,14,0.4);
+    }
+
+    .stat-label {
+      font-size: 0.62rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--blood);
+      opacity: 0.85;
+      margin-bottom: 0.4rem;
+    }
+
+    .stat-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem;
+      font-weight: 300;
+      color: var(--vanilla);
+      line-height: 1;
+    }
+
+    .stat-card.countdown .stat-value {
+      font-size: 3rem;
+      color: var(--blood);
+      text-shadow: 0 0 20px rgba(116,7,14,0.4);
+    }
+
+    .stat-unit {
+      font-size: 0.7rem;
+      color: var(--cinereous);
+      margin-top: 0.2rem;
+    }
+
+    /* ── QUICK LOG ── */
+    .quick-log-card {
+      background: var(--olive);
+      border: 1px solid rgba(116,7,14,0.3);
+      border-top: 2px solid var(--blood);
+      border-radius: 8px;
+      padding: 1.2rem;
+      animation: fadeIn 0.9s ease 0.3s both;
+    }
+
+    .section-title {
+      font-size: 0.62rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--blood);
+      margin-bottom: 0.9rem;
+    }
+
+    .quick-log-card p {
+      font-size: 0.82rem;
+      color: rgba(244,227,178,0.6);
+      line-height: 1.5;
+    }
+
+    .btn-log-today {
+      margin-top: 0.8rem;
+      width: 100%;
+      padding: 0.7rem;
+      background: var(--blood);
+      border: none;
+      border-radius: 5px;
+      color: var(--vanilla);
+      font-family: 'Jost', sans-serif;
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-log-today:hover {
+      background: #8c0a12;
+      box-shadow: 0 0 16px rgba(116,7,14,0.5);
+    }
+
+    /* ── RECENT LOGS ── */
+    .recent-logs {
+      background: var(--olive);
+      border: 1px solid rgba(116,7,14,0.3);
+      border-top: 2px solid var(--blood);
+      border-radius: 8px;
+      padding: 1.2rem;
+      animation: fadeIn 0.9s ease 0.4s both;
+    }
+
+    .log-entry {
+      padding: 0.6rem 0;
+      border-bottom: 1px solid rgba(116,7,14,0.15);
+      font-size: 0.78rem;
+    }
+
+    .log-entry:last-child { border-bottom: none; }
+
+    .log-entry-date {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.9rem;
+      color: var(--vanilla);
+      margin-bottom: 0.15rem;
+    }
+
+    .log-entry-details {
+      color: var(--cinereous);
+      font-size: 0.72rem;
+    }
+
+    .no-data-msg {
+      text-align: center;
+      padding: 1.5rem;
+      color: var(--cinereous);
+      font-size: 0.8rem;
+      font-style: italic;
+      font-family: 'Cormorant Garamond', serif;
+    }
+
+    /* ── MODAL ── */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(49,14,16,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 5000;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    #modal-overlay.open { display: flex; }
+
+    #modal {
+      background: var(--olive);
+      border: 1px solid rgba(116,7,14,0.45);
+      border-top: 3px solid var(--blood);
+      border-radius: 10px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+      animation: modalSlide 0.3s ease both;
+    }
+
+    @keyframes modalSlide {
+      from { opacity:0; transform:translateY(20px) scale(0.97); }
+      to   { opacity:1; transform:none; }
+    }
+
+    #modal h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.6rem;
+      font-weight: 400;
+      color: var(--vanilla);
+      margin-bottom: 0.25rem;
+    }
+
+    #modal .modal-date-sub {
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--cinereous);
+      margin-bottom: 1.5rem;
+    }
+
+    #modal .close-modal {
+      position: absolute;
+      top: 1rem; right: 1rem;
+      background: none;
+      border: 1px solid rgba(148,114,104,0.3);
+      border-radius: 4px;
+      width: 30px; height: 30px;
+      color: var(--cinereous);
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+
+    #modal .close-modal:hover { border-color: var(--vanilla); color: var(--vanilla); }
+
+    .form-group { margin-bottom: 1.2rem; }
+
+    .form-label {
+      display: block;
+      font-size: 0.62rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--blood);
+      opacity: 0.9;
+      margin-bottom: 0.6rem;
+    }
+
+    /* Toggle: is period day */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 44px; height: 24px;
+    }
+
+    .toggle-switch input { opacity:0; width:0; height:0; }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: rgba(148,114,104,0.3);
+      border-radius: 24px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .toggle-slider::before {
+      content:'';
+      position: absolute;
+      width: 18px; height: 18px;
+      left: 3px; top: 3px;
+      background: var(--cinereous);
+      border-radius: 50%;
+      transition: all 0.3s;
+    }
+
+    input:checked + .toggle-slider {
+      background: rgba(116,7,14,0.5);
+    }
+
+    input:checked + .toggle-slider::before {
+      transform: translateX(20px);
+      background: var(--blood);
+    }
+
+    .toggle-label {
+      font-size: 0.85rem;
+      color: var(--vanilla);
+    }
+
+    /* Flow chips */
+    .chip-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      padding: 0.35rem 0.8rem;
+      border: 1px solid rgba(148,114,104,0.4);
+      border-radius: 20px;
+      font-size: 0.75rem;
+      color: var(--cinereous);
+      cursor: pointer;
+      transition: all 0.2s;
+      background: none;
+      font-family: 'Jost', sans-serif;
+      letter-spacing: 0.05em;
+    }
+
+    .chip:hover { border-color: var(--vanilla); color: var(--vanilla); }
+
+    .chip.selected {
+      background: var(--blood);
+      border-color: var(--blood);
+      color: var(--vanilla);
+      box-shadow: 0 0 8px rgba(116,7,14,0.4);
+    }
+
+    /* Mood row */
+    .mood-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .mood-btn {
+      flex: 1;
+      padding: 0.5rem 0.2rem;
+      border: 1px solid rgba(148,114,104,0.3);
+      border-radius: 6px;
+      background: none;
+      cursor: pointer;
+      font-size: 1.2rem;
+      text-align: center;
+      transition: all 0.2s;
+      display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+    }
+
+    .mood-btn span.mood-text {
+      font-size: 0.55rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--cinereous);
+      font-family: 'Jost', sans-serif;
+    }
+
+    .mood-btn:hover { border-color: var(--vanilla); transform: translateY(-2px); }
+
+    .mood-btn.selected {
+      border-color: var(--blood);
+      background: rgba(116,7,14,0.2);
+      box-shadow: 0 0 10px rgba(116,7,14,0.3);
+    }
+
+    /* Notes */
+    textarea.notes-field {
+      width: 100%;
+      background: rgba(49,14,16,0.5);
+      border: 1px solid rgba(148,114,104,0.3);
+      border-radius: 6px;
+      color: var(--vanilla);
+      font-family: 'Jost', sans-serif;
+      font-size: 0.82rem;
+      padding: 0.7rem;
+      resize: vertical;
+      min-height: 70px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    textarea.notes-field:focus {
+      border-color: rgba(148,114,104,0.7);
+    }
+
+    textarea.notes-field::placeholder { color: rgba(148,114,104,0.5); }
+
+    /* Save button */
+    .btn-save {
+      width: 100%;
+      padding: 0.85rem;
+      background: var(--blood);
+      border: none;
+      border-radius: 6px;
+      color: var(--vanilla);
+      font-family: 'Jost', sans-serif;
+      font-size: 0.78rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      cursor: pointer;
+      margin-top: 0.5rem;
+      transition: all 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-save:hover {
+      background: #8c0a12;
+      box-shadow: 0 0 20px rgba(116,7,14,0.6);
+    }
+
+    .btn-save.saved {
+      background: #45462A;
+      border: 1px solid var(--blood);
+    }
+
+    .btn-save::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.15);
+      transform: translateX(-100%);
+      transition: transform 0.4s ease;
+    }
+
+    .btn-save:active::after {
+      transform: translateX(100%);
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: rgba(116,7,14,0.45);
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      border-top: 1px solid rgba(116,7,14,0.15);
+      margin-top: 2rem;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bean); }
+    ::-webkit-scrollbar-thumb { background: var(--olive); border-radius: 3px; }
+
+    /* Mobile tweaks */
+    @media (max-width: 600px) {
+      header { padding: 1.5rem 1rem 1rem; }
+      header h1 { font-size: 2.5rem; }
+      main { padding: 1rem; gap: 1rem; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      #modal { padding: 1.4rem; }
+      .mood-row { gap: 0.3rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── BOTANICAL SVG CORNERS ── -->
+<svg style="position:fixed;top:0;left:0;width:180px;height:180px;opacity:0.12;pointer-events:none;z-index:1;" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M10 170 Q20 100 80 40" stroke="#947268" stroke-width="1.2" fill="none"/>
+  <path d="M80 40 Q60 80 30 90" stroke="#947268" stroke-width="1" fill="none"/>
+  <path d="M80 40 Q100 60 90 100" stroke="#947268" stroke-width="1" fill="none"/>
+  <ellipse cx="80" cy="37" rx="7" ry="14" transform="rotate(-40 80 37)" stroke="#947268" stroke-width="1" fill="none"/>
+  <ellipse cx="30" cy="91" rx="6" ry="11" transform="rotate(20 30 91)" stroke="#947268" stroke-width="1" fill="none"/>
+  <ellipse cx="92" cy="102" rx="5" ry="10" transform="rotate(-10 92 102)" stroke="#947268" stroke-width="1" fill="none"/>
+  <circle cx="80" cy="40" r="3" stroke="#947268" stroke-width="1" fill="none"/>
+  <path d="M10 170 Q5 140 15 120" stroke="#947268" stroke-width="0.8" fill="none"/>
+  <ellipse cx="15" cy="118" rx="4" ry="8" transform="rotate(30 15 118)" stroke="#947268" stroke-width="0.8" fill="none"/>
+</svg>
+
+<svg style="position:fixed;top:0;right:0;width:180px;height:180px;opacity:0.12;pointer-events:none;z-index:1;transform:scaleX(-1);" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M10 170 Q20 100 80 40" stroke="#947268" stroke-width="1.2" fill="none"/>
+  <path d="M80 40 Q60 80 30 90" stroke="#947268" stroke-width="1" fill="none"/>
+  <path d="M80 40 Q100 60 90 100" stroke="#947268" stroke-width="1" fill="none"/>
+  <ellipse cx="80" cy="37" rx="7" ry="14" transform="rotate(-40 80 37)" stroke="#947268" stroke-width="1" fill="none"/>
+  <ellipse cx="30" cy="91" rx="6" ry="11" transform="rotate(20 30 91)" stroke="#947268" stroke-width="1" fill="none"/>
+  <ellipse cx="92" cy="102" rx="5" ry="10" transform="rotate(-10 92 102)" stroke="#947268" stroke-width="1" fill="none"/>
+  <circle cx="80" cy="40" r="3" stroke="#947268" stroke-width="1" fill="none"/>
+</svg>
+
+<!-- ── HEADER ── -->
+<header>
+  <h1>L<span>un</span>a</h1>
+  <p class="tagline">A personal moon journal</p>
+</header>
+
+<!-- ── PHASE STRIP ── -->
+<div id="phase-strip">
+  <span class="phase-icon">🌑</span>
+  <div>
+    <div class="phase-label" id="phase-name">—</div>
+    <div class="phase-desc" id="phase-desc">Log your first cycle to begin</div>
+  </div>
+  <div class="phase-dots" id="phase-dots">
+    <span></span><span></span><span></span><span></span>
+  </div>
+</div>
+
+<!-- ── BANNERS ── -->
+<div id="prediction-banner">
+  <button class="banner-close" onclick="document.getElementById('prediction-banner').style.display='none'">✕</button>
+  <div class="banner-title">Your next visit 🌹</div>
+  <div id="prediction-text"></div>
+</div>
+
+<div id="reminder-alert" id="reminder-alert">
+  <span id="reminder-text"></span>
+</div>
+
+<!-- ── MAIN ── -->
+<main>
+  <!-- Calendar -->
+  <div class="calendar-wrapper">
+    <div class="cal-header">
+      <button class="cal-nav" id="prev-month">&#8592;</button>
+      <h2 id="cal-title"></h2>
+      <button class="cal-nav" id="next-month">&#8594;</button>
+    </div>
+    <div class="cal-weekdays">
+      <span>Sun</span><span>Mon</span><span>Tue</span>
+      <span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="cal-legend">
+      <div class="legend-item"><span class="legend-swatch period"></span> Period</div>
+      <div class="legend-item"><span class="legend-swatch predicted"></span> Predicted</div>
+      <div class="legend-item"><span class="legend-swatch today"></span> Today</div>
+    </div>
+  </div>
+
+  <!-- Right panel -->
+  <div class="right-panel">
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card countdown">
+        <div class="stat-label">Days Until Next Period</div>
+        <div class="stat-value" id="stat-countdown">—</div>
+        <div class="stat-unit" id="stat-countdown-sub">log a cycle to predict</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Cycle</div>
+        <div class="stat-value" id="stat-cycle">—</div>
+        <div class="stat-unit">days</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Duration</div>
+        <div class="stat-value" id="stat-duration">—</div>
+        <div class="stat-unit">days</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Cycle Day</div>
+        <div class="stat-value" id="stat-cycleday">—</div>
+        <div class="stat-unit">of this cycle</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Cycles Logged</div>
+        <div class="stat-value" id="stat-logged">0</div>
+        <div class="stat-unit">total</div>
+      </div>
+    </div>
+
+    <!-- Quick log today -->
+    <div class="quick-log-card">
+      <div class="section-title">Today's Log</div>
+      <p id="today-log-summary">Nothing logged yet. Click below to record how you're feeling today.</p>
+      <button class="btn-log-today" onclick="openModal(todayStr())">&#43; Log Today</button>
+    </div>
+
+    <!-- Recent logs -->
+    <div class="recent-logs">
+      <div class="section-title">Recent Entries</div>
+      <div id="recent-log-list"><div class="no-data-msg">No entries yet.<br>Click any date to begin.</div></div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ── MODAL ── -->
+<div id="modal-overlay">
+  <div id="modal">
+    <button class="close-modal" onclick="closeModal()">✕</button>
+    <h3 id="modal-title"></h3>
+    <div class="modal-date-sub" id="modal-sub"></div>
+
+    <!-- Period toggle -->
+    <div class="form-group">
+      <label class="form-label">Period Day</label>
+      <div class="toggle-row">
+        <label class="toggle-switch">
+          <input type="checkbox" id="f-is-period">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label">Mark as period day</span>
+      </div>
+    </div>
+
+    <!-- Flow -->
+    <div class="form-group" id="flow-group">
+      <label class="form-label">Flow Intensity</label>
+      <div class="chip-row" id="flow-chips">
+        <button class="chip" data-flow="spotting">Spotting</button>
+        <button class="chip" data-flow="light">Light</button>
+        <button class="chip" data-flow="medium">Medium</button>
+        <button class="chip" data-flow="heavy">Heavy</button>
+      </div>
+    </div>
+
+    <!-- Symptoms -->
+    <div class="form-group">
+      <label class="form-label">Symptoms</label>
+      <div class="chip-row" id="symptom-chips">
+        <button class="chip" data-symptom="cramps">Cramps</button>
+        <button class="chip" data-symptom="bloating">Bloating</button>
+        <button class="chip" data-symptom="headache">Headache</button>
+        <button class="chip" data-symptom="fatigue">Fatigue</button>
+        <button class="chip" data-symptom="backache">Backache</button>
+        <button class="chip" data-symptom="nausea">Nausea</button>
+        <button class="chip" data-symptom="acne">Acne</button>
+        <button class="chip" data-symptom="tender">Breast Tenderness</button>
+      </div>
+    </div>
+
+    <!-- Mood -->
+    <div class="form-group">
+      <label class="form-label">Mood</label>
+      <div class="mood-row">
+        <button class="mood-btn" data-mood="good">☀️<span class="mood-text">Good</span></button>
+        <button class="mood-btn" data-mood="meh">🌥️<span class="mood-text">Meh</span></button>
+        <button class="mood-btn" data-mood="low">🌧️<span class="mood-text">Low</span></button>
+        <button class="mood-btn" data-mood="irritable">⚡<span class="mood-text">Edgy</span></button>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea class="notes-field" id="f-notes" placeholder="Anything else on your mind..."></textarea>
+    </div>
+
+    <button class="btn-save" id="save-btn" onclick="saveLog()">Save Entry</button>
+  </div>
+</div>
+
+<!-- ── FOOTER ── -->
+<footer>Luna &mdash; your data lives only in this browser &mdash; &copy; 2025</footer>
+
+<script>
+// ══════════════════════════════════════════════
+//  DATA LAYER
+// ══════════════════════════════════════════════
+
+const DATA_KEY = 'bloom_period_data';
+
+function getData() {
+  try { return JSON.parse(localStorage.getItem(DATA_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function saveData(d) {
+  localStorage.setItem(DATA_KEY, JSON.stringify(d));
+}
+
+function todayStr() {
+  return fmtDate(new Date());
+}
+
+function fmtDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const dy = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dy}`;
+}
+
+function parseDate(s) {
+  // Parse YYYY-MM-DD without timezone shift
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+
+function daysBetween(a, b) {
+  // a, b are Date objects
+  return Math.round((b - a) / 86400000);
+}
+
+function addDays(d, n) {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
+function humanDate(dateStr) {
+  const d = parseDate(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function shortDate(dateStr) {
+  const d = parseDate(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// ══════════════════════════════════════════════
+//  CYCLE ANALYSIS
+// ══════════════════════════════════════════════
+
+function getPeriodDays() {
+  const data = getData();
+  return Object.keys(data).filter(k => data[k].isPeriod).sort();
+}
+
+function getPeriodStartDates() {
+  const days = getPeriodDays();
+  if (!days.length) return [];
+  const starts = [days[0]];
+  for (let i = 1; i < days.length; i++) {
+    const prev = parseDate(days[i-1]);
+    const cur  = parseDate(days[i]);
+    if (daysBetween(prev, cur) > 2) {
+      starts.push(days[i]);
+    }
+  }
+  return starts;
+}
+
+function getPeriodRuns() {
+  // Returns array of {start, end, length} for each period run
+  const days = getPeriodDays();
+  if (!days.length) return [];
+  const runs = [];
+  let runStart = days[0];
+  let runEnd   = days[0];
+  for (let i = 1; i < days.length; i++) {
+    const prev = parseDate(days[i-1]);
+    const cur  = parseDate(days[i]);
+    if (daysBetween(prev, cur) <= 2) {
+      runEnd = days[i];
+    } else {
+      const len = daysBetween(parseDate(runStart), parseDate(runEnd)) + 1;
+      runs.push({ start: runStart, end: runEnd, length: len });
+      runStart = days[i];
+      runEnd   = days[i];
+    }
+  }
+  const len = daysBetween(parseDate(runStart), parseDate(runEnd)) + 1;
+  runs.push({ start: runStart, end: runEnd, length: len });
+  return runs;
+}
+
+function getAvgCycleLength() {
+  const starts = getPeriodStartDates();
+  if (starts.length < 2) return 28;
+  const diffs = [];
+  for (let i = 1; i < starts.length; i++) {
+    diffs.push(daysBetween(parseDate(starts[i-1]), parseDate(starts[i])));
+  }
+  return Math.round(diffs.reduce((a,b)=>a+b,0) / diffs.length);
+}
+
+function getAvgPeriodLength() {
+  const runs = getPeriodRuns();
+  if (!runs.length) return 5;
+  const avg = runs.reduce((a,r)=>a+r.length,0) / runs.length;
+  return Math.round(avg);
+}
+
+function getNextPeriodDate() {
+  const starts = getPeriodStartDates();
+  if (!starts.length) return null;
+  const lastStart = parseDate(starts[starts.length - 1]);
+  const avgCycle  = getAvgCycleLength();
+  return addDays(lastStart, avgCycle);
+}
+
+function getPredictedDays() {
+  // Returns set of date strings for predicted period days
+  const next = getNextPeriodDate();
+  if (!next) return new Set();
+  const avgLen = getAvgPeriodLength();
+  const days = new Set();
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  // Only show future predictions
+  for (let i = 0; i < avgLen; i++) {
+    const d = addDays(next, i);
+    if (d >= today) days.add(fmtDate(d));
+  }
+  return days;
+}
+
+function getCurrentCycleDay() {
+  const starts = getPeriodStartDates();
+  if (!starts.length) return null;
+  const last = parseDate(starts[starts.length - 1]);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  return daysBetween(last, today) + 1;
+}
+
+function getCurrentPhase() {
+  const cycleDay = getCurrentCycleDay();
+  if (!cycleDay || cycleDay < 1) return null;
+  const avg = getAvgCycleLength();
+  const avgLen = getAvgPeriodLength();
+  if (cycleDay <= avgLen) {
+    return { name: 'Menstrual', desc: 'The body sheds and renews', icon: '🩸', idx: 0, color: 'rgba(116,7,14,0.25)' };
+  }
+  const ovDay = Math.round(avg * 0.5);
+  if (cycleDay <= ovDay - 2) {
+    return { name: 'Follicular', desc: 'Energy rises, possibility blooms', icon: '🌱', idx: 1, color: 'rgba(69,70,42,0.6)' };
+  }
+  if (cycleDay <= ovDay + 2) {
+    return { name: 'Ovulation', desc: 'The peak of potential', icon: '✨', idx: 2, color: 'rgba(148,114,104,0.3)' };
+  }
+  return { name: 'Luteal', desc: 'Turning inward, soft and still', icon: '🌙', idx: 3, color: 'rgba(49,14,16,0.5)' };
+}
+
+// ══════════════════════════════════════════════
+//  CALENDAR STATE
+// ══════════════════════════════════════════════
+
+const now = new Date();
+let calYear  = now.getFullYear();
+let calMonth = now.getMonth();
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function renderCalendar() {
+  const data      = getData();
+  const predicted = getPredictedDays();
+  const today     = todayStr();
+
+  document.getElementById('cal-title').textContent = `${MONTHS[calMonth]} ${calYear}`;
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+
+  // Empty cells before month start
+  for (let i = 0; i < firstDay; i++) {
+    const empty = document.createElement('div');
+    empty.className = 'cal-day empty';
+    grid.appendChild(empty);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cell = document.createElement('div');
+    cell.className = 'cal-day';
+    cell.textContent = d;
+
+    const dayData = data[dateStr];
+    if (dayData?.isPeriod) cell.classList.add('period');
+    else if (predicted.has(dateStr)) cell.classList.add('predicted');
+
+    if (dateStr === today) cell.classList.add('today');
+    if (dayData && (dayData.flow || dayData.mood || (dayData.symptoms&&dayData.symptoms.length) || dayData.notes)) {
+      cell.classList.add('has-log');
+    }
+
+    cell.addEventListener('click', () => openModal(dateStr));
+    grid.appendChild(cell);
+  }
+}
+
+// ══════════════════════════════════════════════
+//  PHASE STRIP
+// ══════════════════════════════════════════════
+
+function renderPhaseStrip() {
+  const phase = getCurrentPhase();
+  const strip = document.getElementById('phase-strip');
+  const dots  = document.querySelectorAll('#phase-dots span');
+
+  if (!phase) {
+    document.getElementById('phase-name').textContent = '—';
+    document.getElementById('phase-desc').textContent = 'Log your first cycle to begin';
+    document.getElementById('phase-strip').querySelector('.phase-icon').textContent = '🌑';
+    strip.style.background = '';
+    dots.forEach(d => d.classList.remove('active'));
+    return;
+  }
+
+  document.getElementById('phase-name').textContent = phase.name;
+  document.getElementById('phase-desc').textContent = phase.desc;
+  document.getElementById('phase-strip').querySelector('.phase-icon').textContent = phase.icon;
+  strip.style.background = phase.color;
+  dots.forEach((d,i) => {
+    d.classList.toggle('active', i === phase.idx);
+  });
+}
+
+// ══════════════════════════════════════════════
+//  STATS
+// ══════════════════════════════════════════════
+
+function renderStats() {
+  const starts = getPeriodStartDates();
+  const today  = new Date(); today.setHours(0,0,0,0);
+
+  // Cycle count
+  document.getElementById('stat-logged').textContent = starts.length;
+
+  // Avg cycle
+  if (starts.length >= 2) {
+    document.getElementById('stat-cycle').textContent = getAvgCycleLength();
+  } else {
+    document.getElementById('stat-cycle').textContent = starts.length === 1 ? '28*' : '—';
+  }
+
+  // Avg duration
+  const runs = getPeriodRuns();
+  if (runs.length) {
+    document.getElementById('stat-duration').textContent = getAvgPeriodLength();
+  } else {
+    document.getElementById('stat-duration').textContent = '—';
+  }
+
+  // Cycle day
+  const cycleDay = getCurrentCycleDay();
+  document.getElementById('stat-cycleday').textContent = cycleDay || '—';
+
+  // Countdown
+  const nextDate = getNextPeriodDate();
+  if (nextDate) {
+    const diff = daysBetween(today, nextDate);
+    const countEl  = document.getElementById('stat-countdown');
+    const countSub = document.getElementById('stat-countdown-sub');
+    if (diff > 0) {
+      countEl.textContent  = diff;
+      countSub.textContent = `around ${nextDate.toLocaleDateString('en-US',{month:'short',day:'numeric'})}`;
+    } else if (diff === 0) {
+      countEl.textContent  = 'Today';
+      countSub.textContent = 'your period may start today';
+    } else {
+      // Period should have started; show days late
+      countEl.textContent  = Math.abs(diff);
+      countSub.textContent = 'days since predicted start';
+    }
+  } else {
+    document.getElementById('stat-countdown').textContent = '—';
+    document.getElementById('stat-countdown-sub').textContent = 'log a cycle to predict';
+  }
+}
+
+// ══════════════════════════════════════════════
+//  BANNERS & REMINDERS
+// ══════════════════════════════════════════════
+
+function renderBanners() {
+  const starts   = getPeriodStartDates();
+  const nextDate = getNextPeriodDate();
+  const today    = new Date(); today.setHours(0,0,0,0);
+
+  const banner = document.getElementById('prediction-banner');
+  const textEl = document.getElementById('prediction-text');
+  const alert  = document.getElementById('reminder-alert');
+  const alertT = document.getElementById('reminder-text');
+
+  if (nextDate && starts.length >= 1) {
+    const diff = daysBetween(today, nextDate);
+    const dateStr = nextDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+
+    // Show prediction banner only if we haven't dismissed it and it's not too far
+    if (diff > 3) {
+      textEl.textContent = `Heads up — your next period may arrive around ${dateStr}. Everyone's cycle is different, so this is just an estimate 💛`;
+      if (banner.style.display !== 'none') banner.style.display = 'block';
+    }
+
+    // Show reminder alert 3 days before
+    if (diff >= 0 && diff <= 3) {
+      banner.style.display = 'none';
+      alertT.textContent = `Your period might be visiting soon 🌹 — around ${dateStr}`;
+      alert.style.display = 'block';
+    } else {
+      alert.style.display = 'none';
+    }
+  } else {
+    banner.style.display = 'none';
+    alert.style.display  = 'none';
+  }
+}
+
+// ══════════════════════════════════════════════
+//  TODAY'S LOG SUMMARY
+// ══════════════════════════════════════════════
+
+function renderTodaySummary() {
+  const data = getData();
+  const d = data[todayStr()];
+  const el = document.getElementById('today-log-summary');
+  if (!d) {
+    el.textContent = 'Nothing logged yet. Click below to record how you\'re feeling today.';
+    return;
+  }
+  const parts = [];
+  if (d.isPeriod) parts.push(`Flow: ${d.flow || 'logged'}`);
+  if (d.mood) {
+    const moods = { good:'☀️ Good', meh:'🌥️ Meh', low:'🌧️ Low', irritable:'⚡ Edgy' };
+    parts.push(`Mood: ${moods[d.mood] || d.mood}`);
+  }
+  if (d.symptoms?.length) parts.push(`Symptoms: ${d.symptoms.join(', ')}`);
+  el.textContent = parts.length ? parts.join(' · ') : 'Entry saved.';
+}
+
+// ══════════════════════════════════════════════
+//  RECENT LOGS
+// ══════════════════════════════════════════════
+
+function renderRecentLogs() {
+  const data = getData();
+  const list = document.getElementById('recent-log-list');
+  const entries = Object.keys(data)
+    .filter(k => {
+      const d = data[k];
+      return d.isPeriod || d.flow || d.mood || d.notes || (d.symptoms&&d.symptoms.length);
+    })
+    .sort((a,b) => b.localeCompare(a))
+    .slice(0, 7);
+
+  if (!entries.length) {
+    list.innerHTML = '<div class="no-data-msg">No entries yet.<br>Click any date to begin.</div>';
+    return;
+  }
+
+  list.innerHTML = entries.map(k => {
+    const d = data[k];
+    const tags = [];
+    if (d.isPeriod) tags.push(d.flow ? d.flow : 'period');
+    if (d.mood) tags.push({good:'☀️',meh:'🌥️',low:'🌧️',irritable:'⚡'}[d.mood] || d.mood);
+    if (d.symptoms?.length) tags.push(d.symptoms[0]);
+    return `<div class="log-entry">
+      <div class="log-entry-date">${humanDate(k)}</div>
+      <div class="log-entry-details">${tags.join(' · ') || 'note logged'}</div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+//  MODAL
+// ══════════════════════════════════════════════
+
+let currentModalDate = null;
+
+function openModal(dateStr) {
+  currentModalDate = dateStr;
+  const data  = getData();
+  const entry = data[dateStr] || {};
+
+  // Title
+  document.getElementById('modal-title').textContent = humanDate(dateStr);
+  document.getElementById('modal-sub').textContent = dateStr === todayStr() ? 'Today' : '';
+
+  // Populate period toggle
+  document.getElementById('f-is-period').checked = !!entry.isPeriod;
+
+  // Flow chips
+  document.querySelectorAll('[data-flow]').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.flow === entry.flow);
+  });
+
+  // Symptom chips
+  document.querySelectorAll('[data-symptom]').forEach(btn => {
+    btn.classList.toggle('selected', entry.symptoms?.includes(btn.dataset.symptom));
+  });
+
+  // Mood buttons
+  document.querySelectorAll('[data-mood]').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.mood === entry.mood);
+  });
+
+  // Notes
+  document.getElementById('f-notes').value = entry.notes || '';
+
+  // Reset save button
+  const saveBtn = document.getElementById('save-btn');
+  saveBtn.textContent = 'Save Entry';
+  saveBtn.classList.remove('saved');
+
+  document.getElementById('modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+  currentModalDate = null;
+}
+
+function saveLog() {
+  if (!currentModalDate) return;
+  const data = getData();
+
+  const isPeriod = document.getElementById('f-is-period').checked;
+  const flow     = document.querySelector('[data-flow].selected')?.dataset.flow || null;
+  const symptoms = [...document.querySelectorAll('[data-symptom].selected')].map(b => b.dataset.symptom);
+  const mood     = document.querySelector('[data-mood].selected')?.dataset.mood || null;
+  const notes    = document.getElementById('f-notes').value.trim();
+
+  data[currentModalDate] = { isPeriod, flow, symptoms, mood, notes };
+  saveData(data);
+
+  // Animate save button
+  const btn = document.getElementById('save-btn');
+  btn.textContent = 'Saved ✓';
+  btn.classList.add('saved');
+  setTimeout(() => {
+    closeModal();
+    renderAll();
+  }, 700);
+}
+
+// ══════════════════════════════════════════════
+//  EVENT WIRING
+// ══════════════════════════════════════════════
+
+// Cal nav
+document.getElementById('prev-month').addEventListener('click', () => {
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+});
+
+document.getElementById('next-month').addEventListener('click', () => {
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+});
+
+// Close modal on overlay click
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+// Flow chips (single select)
+document.querySelectorAll('[data-flow]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const wasSelected = btn.classList.contains('selected');
+    document.querySelectorAll('[data-flow]').forEach(b => b.classList.remove('selected'));
+    if (!wasSelected) btn.classList.add('selected');
+  });
+});
+
+// Symptom chips (multi select)
+document.querySelectorAll('[data-symptom]').forEach(btn => {
+  btn.addEventListener('click', () => btn.classList.toggle('selected'));
+});
+
+// Mood buttons (single select)
+document.querySelectorAll('[data-mood]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const wasSelected = btn.classList.contains('selected');
+    document.querySelectorAll('[data-mood]').forEach(b => b.classList.remove('selected'));
+    if (!wasSelected) btn.classList.add('selected');
+  });
+});
+
+// Keyboard close
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// ══════════════════════════════════════════════
+//  RENDER ALL
+// ══════════════════════════════════════════════
+
+function renderAll() {
+  renderCalendar();
+  renderPhaseStrip();
+  renderStats();
+  renderBanners();
+  renderTodaySummary();
+  renderRecentLogs();
+}
+
+renderAll();
+
+// ══════════════════════════════════════════════
+//  PWA ICON + MANIFEST (single-file approach)
+// ══════════════════════════════════════════════
+
+(function setupPWA() {
+  // Draw icon on canvas
+  function makeIcon(size) {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+    const cx = size / 2, cy = size / 2, r = size / 2;
+
+    // Background circle: deep bean
+    ctx.fillStyle = '#310E10';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Outer red glow ring
+    const grad = ctx.createRadialGradient(cx, cy, r * 0.55, cx, cy, r * 0.98);
+    grad.addColorStop(0, 'rgba(116,7,14,0)');
+    grad.addColorStop(1, 'rgba(116,7,14,0.55)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Inner red disc
+    ctx.fillStyle = '#74070E';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Moon crescent cut-out (gives lunar feel)
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+    ctx.beginPath();
+    ctx.arc(cx + r * 0.22, cy - r * 0.1, r * 0.44, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+
+    // Vanilla dot centre
+    ctx.fillStyle = '#F4E3B2';
+    ctx.beginPath();
+    ctx.arc(cx - r * 0.08, cy, r * 0.07, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Small vanilla sparkle lines
+    const sp = r * 0.32;
+    ctx.strokeStyle = 'rgba(244,227,178,0.35)';
+    ctx.lineWidth = size / 60;
+    [45, 90, 135].forEach(deg => {
+      const rad = deg * Math.PI / 180;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(rad) * sp * 0.5, cy + Math.sin(rad) * sp * 0.5);
+      ctx.lineTo(cx + Math.cos(rad) * sp, cy + Math.sin(rad) * sp);
+      ctx.stroke();
+    });
+
+    return c.toDataURL('image/png');
+  }
+
+  const icon192 = makeIcon(192);
+  const icon512 = makeIcon(512);
+  const icon180 = makeIcon(180);
+
+  // Favicon
+  let link = document.querySelector("link[rel='icon']") || document.createElement('link');
+  link.rel = 'icon'; link.type = 'image/png'; link.href = icon192;
+  document.head.appendChild(link);
+
+  // Apple touch icon
+  let alink = document.createElement('link');
+  alink.rel = 'apple-touch-icon'; alink.sizes = '180x180'; alink.href = icon180;
+  document.head.appendChild(alink);
+
+  // Web App Manifest (inline data URI)
+  const manifest = {
+    name: 'Luna — Period Tracker',
+    short_name: 'Luna',
+    description: 'A personal moon journal',
+    start_url: '.',
+    display: 'standalone',
+    background_color: '#310E10',
+    theme_color: '#310E10',
+    orientation: 'portrait',
+    icons: [
+      { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+      { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+    ]
+  };
+  const mlink = document.createElement('link');
+  mlink.rel = 'manifest';
+  mlink.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(manifest));
+  document.head.appendChild(mlink);
+})();
+</script>
+</body>
+</html>
