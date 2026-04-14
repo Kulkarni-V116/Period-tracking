@@ -1529,101 +1529,75 @@ function renderAll() {
 renderAll();
 
 // ══════════════════════════════════════════════
-//  PWA ICON + MANIFEST (single-file approach)
+//  PWA ICON + MANIFEST
+//  Deferred so it never blocks the main thread
 // ══════════════════════════════════════════════
 
-(function setupPWA() {
-  // Draw icon on canvas
+setTimeout(function setupPWA() {
+  // One small canvas — 96 px is plenty for favicon + apple-touch-icon
   function makeIcon(size) {
     const c = document.createElement('canvas');
     c.width = c.height = size;
     const ctx = c.getContext('2d');
     const cx = size / 2, cy = size / 2, r = size / 2;
 
-    // Background circle: deep bean
+    // Dark background
     ctx.fillStyle = '#310E10';
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fill();
 
-    // Outer red glow ring
-    const grad = ctx.createRadialGradient(cx, cy, r * 0.55, cx, cy, r * 0.98);
-    grad.addColorStop(0, 'rgba(116,7,14,0)');
-    grad.addColorStop(1, 'rgba(116,7,14,0.55)');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Inner red disc
+    // Red disc
     ctx.fillStyle = '#74070E';
     ctx.beginPath();
-    ctx.arc(cx, cy, r * 0.6, 0, Math.PI * 2);
+    ctx.arc(cx, cy, r * 0.62, 0, Math.PI * 2);
     ctx.fill();
 
-    // Moon crescent cut-out (gives lunar feel)
+    // Crescent cut-out
     ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = 'rgba(0,0,0,1)';
+    ctx.fillStyle = '#000';
     ctx.beginPath();
-    ctx.arc(cx + r * 0.22, cy - r * 0.1, r * 0.44, 0, Math.PI * 2);
+    ctx.arc(cx + r * 0.22, cy - r * 0.08, r * 0.44, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
 
-    // Vanilla dot centre
+    // Vanilla dot
     ctx.fillStyle = '#F4E3B2';
     ctx.beginPath();
-    ctx.arc(cx - r * 0.08, cy, r * 0.07, 0, Math.PI * 2);
+    ctx.arc(cx - r * 0.1, cy, r * 0.08, 0, Math.PI * 2);
     ctx.fill();
-
-    // Small vanilla sparkle lines
-    const sp = r * 0.32;
-    ctx.strokeStyle = 'rgba(244,227,178,0.35)';
-    ctx.lineWidth = size / 60;
-    [45, 90, 135].forEach(deg => {
-      const rad = deg * Math.PI / 180;
-      ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(rad) * sp * 0.5, cy + Math.sin(rad) * sp * 0.5);
-      ctx.lineTo(cx + Math.cos(rad) * sp, cy + Math.sin(rad) * sp);
-      ctx.stroke();
-    });
 
     return c.toDataURL('image/png');
   }
 
-  const icon192 = makeIcon(192);
-  const icon512 = makeIcon(512);
-  const icon180 = makeIcon(180);
+  const icon = makeIcon(96);   // single small render
 
   // Favicon
-  let link = document.querySelector("link[rel='icon']") || document.createElement('link');
-  link.rel = 'icon'; link.type = 'image/png'; link.href = icon192;
-  document.head.appendChild(link);
+  const fav = document.createElement('link');
+  fav.rel = 'icon'; fav.type = 'image/png'; fav.href = icon;
+  document.head.appendChild(fav);
 
-  // Apple touch icon
-  let alink = document.createElement('link');
-  alink.rel = 'apple-touch-icon'; alink.sizes = '180x180'; alink.href = icon180;
-  document.head.appendChild(alink);
+  // Apple touch icon (iOS "Add to Home Screen")
+  const atl = document.createElement('link');
+  atl.rel = 'apple-touch-icon'; atl.href = icon;
+  document.head.appendChild(atl);
 
-  // Web App Manifest (inline data URI)
+  // Minimal manifest — no image blobs inside, avoids double-encoding freeze
   const manifest = {
     name: 'Luna — Period Tracker',
     short_name: 'Luna',
-    description: 'A personal moon journal',
     start_url: '.',
     display: 'standalone',
     background_color: '#310E10',
     theme_color: '#310E10',
-    orientation: 'portrait',
-    icons: [
-      { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-      { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
-    ]
+    orientation: 'portrait'
   };
-  const mlink = document.createElement('link');
-  mlink.rel = 'manifest';
-  mlink.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(manifest));
-  document.head.appendChild(mlink);
-})();
+  const ml = document.createElement('link');
+  ml.rel = 'manifest';
+  ml.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(manifest));
+  document.head.appendChild(ml);
+
+}, 0); // runs after page is fully painted and interactive
 </script>
 </body>
 </html>
